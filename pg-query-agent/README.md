@@ -1,6 +1,8 @@
 # pg-query-agent
 
-A CLI tool that lets you query your PostgreSQL database in plain English. Type a question, get results — Claude handles the SQL.
+A natural language PostgreSQL query tool — available as both an **interactive CLI** and an **MCP server** you can call from any AI assistant (Kiro, Claude Code, etc.).
+
+Type a question, get results. Claude handles the SQL.
 
 ```
 Table: orders> show me the last 10 orders by total amount
@@ -20,9 +22,7 @@ Powered by [Claude Code SDK](https://github.com/anthropics/claude-code-sdk-pytho
 ## How It Works
 
 ```
-User types a question
-        ↓
-main.py  (CLI loop)
+User question (CLI or MCP tool call)
         ↓
 agents/query_builder.py  ──→  Claude AI (claude-code-sdk)
         ↓  returns SQL
@@ -32,7 +32,8 @@ tools/query_tool.py  ──→  3-layer guardrail check
         ↓  if safe
 PostgreSQL database
         ↓  results
-main.py  ──→  prints rich table to terminal
+CLI: main.py prints rich table to terminal
+MCP: mcp_server.py returns JSON to the caller
         ↓
 context/store.py  ──→  saves question + SQL + outcome to SQLite
 ```
@@ -45,7 +46,8 @@ Every query Claude generates passes through a **three-layer safety guardrail** b
 
 ```
 pg-query-agent/
-├── main.py                        # Entry point — CLI loop, slash commands, rendering
+├── main.py                        # Interactive CLI — loop, slash commands, rendering
+├── mcp_server.py                  # MCP server — exposes 3 tools over stdio
 ├── agents/
 │   ├── query_builder.py           # Natural language → SQL via Claude
 │   └── query_executor.py          # SQL → database results via guardrails
@@ -82,7 +84,6 @@ pg-query-agent/
 ### Install
 
 ```bash
-# Clone and enter the project
 cd pg-query-agent
 
 # Create virtual environment and install dependencies
@@ -102,15 +103,15 @@ DATABASE_USER=postgres
 DATABASE_PASSWORD=secret
 ```
 
-### Run
+---
+
+## Usage
+
+### Option 1 — Interactive CLI
 
 ```bash
 uv run python main.py
 ```
-
----
-
-## Usage
 
 On startup you'll see a table picker with tab-completion. Select a table and start asking questions.
 
@@ -120,7 +121,7 @@ Table: orders> show me failed orders from the last 7 days
 Table: products> which products have never been ordered?
 ```
 
-### Slash Commands
+#### Slash Commands
 
 | Command | Description |
 |---|---|
@@ -136,7 +137,75 @@ Tab-complete works for both slash commands and table names.
 
 ---
 
+### Option 2 — MCP Server (Kiro / Claude Code)
+
+`mcp_server.py` exposes the same functionality as three callable tools over stdio, so any MCP-compatible AI assistant can query your database directly.
+
+#### Register with Kiro
+
+Add the following to `~/.kiro/settings/mcp.json` under `mcpServers`:
+
+```json
+"pg-query-agent": {
+  "command": "/path/to/pg-query-agent/.venv/bin/python",
+  "args": ["/path/to/pg-query-agent/mcp_server.py"],
+  "env": {},
+  "autoApprove": ["query", "list_tables", "get_schema"]
+}
+```
+
+Replace `/path/to/pg-query-agent/` with the absolute path on your machine. Then reconnect MCP servers from the Kiro panel or Command Palette → "Reconnect MCP Servers".
+
+#### Register with Claude Code
+
+Add the following to `~/.claude/settings.json` under `mcpServers`:
+
+```json
+"pg-query-agent": {
+  "type": "stdio",
+  "command": "/path/to/pg-query-agent/.venv/bin/python",
+  "args": ["/path/to/pg-query-agent/mcp_server.py"],
+  "env": {}
+}
+```
+
+#### Available MCP Tools
+
+| Tool | Inputs | Returns |
+|---|---|---|
+| `query` | `table` (string), `question` (string) | `{"sql": "...", "rows": [...], "row_count": N}` |
+| `list_tables` | `pattern` (string, optional) | `{"tables": ["orders", "users", ...]}` |
+| `get_schema` | `table` (string) | `{"table": "...", "schema": "..."}` |
+
+The `query` tool caches schemas and conversation history in `~/.pg-query-agent/context.db`, so repeated queries on the same table get faster and Claude avoids repeating past SQL mistakes.
+
+On error, `query` returns `{"error": "...", "sql": "..."}` rather than raising — the assistant can surface the message directly.
+
+#### Test the server manually
+
+```bash
+# Should start without errors (Ctrl+C to exit)
+.venv/bin/python mcp_server.py
+```
+
+---
+
 ## Architecture Deep Dive
+
+### `mcp_server.py` — MCP Server
+
+Wraps the same agents and tools as the CLI into three MCP tools using `FastMCP` (from the `mcp` package). Runs over stdio — the default transport for Claude Code and Kiro.
+
+Each tool call:
+1. Loads `.env` from the project directory (resolved relative to `mcp_server.py`)
+2. Validates all 5 required env vars are present
+3. Opens a fresh `ContextStore` context manager (no shared state between calls)
+4. Delegates to the same `build_query` / `execute_query` / `schema_tool` functions the CLI uses
+5. Returns JSON
+
+The `query` tool is `async` (calls `await build_query`). `list_tables` and `get_schema` are sync. FastMCP handles both.
+
+---
 
 ### `main.py` — CLI Entry Point
 
@@ -268,6 +337,7 @@ uv run pytest --cov
 | `prompt-toolkit` | Interactive prompt with tab-completion |
 | `python-dotenv` | Loads `.env` credentials |
 | `pyyaml` | Reads `config/agents.yaml` |
+| `mcp` | MCP server framework (`FastMCP`) for the stdio server |
 
 ---
 
