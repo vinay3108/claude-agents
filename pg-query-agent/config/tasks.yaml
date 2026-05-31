@@ -1,0 +1,12 @@
+build_query_task:
+  description: >
+    Given a natural language question, the table name, and the table schema,
+    generate a PostgreSQL SELECT statement that answers the question.
+    Always add LIMIT 50 unless a different limit is specified by the user.
+  expected_output: A valid PostgreSQL SELECT statement inside a ```sql code block
+
+execute_query_task:
+  description: >
+    Given a SQL SELECT statement, run it through the three-layer guardrail system,
+    then execute it against PostgreSQL inside a BEGIN TRANSACTION READ ONLY block.
+  expected_output: Query results as a list of row dictionaries
