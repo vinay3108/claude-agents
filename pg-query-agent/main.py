@@ -5,7 +5,7 @@ import asyncio
 import os
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
 from prompt_toolkit import PromptSession
@@ -35,14 +35,17 @@ REQUIRED_ENV = [
 
 HELP_TEXT = """\
 [bold]Slash commands:[/bold]
-  [cyan]/tables[/cyan]          list all tables in the database
-  [cyan]/table <name>[/cyan]    switch to a different table
-  [cyan]/btw[/cyan]             back to table selection (interactive)
-  [cyan]/schema[/cyan]          re-show current table schema
-  [cyan]/history[/cyan]         show query history for current table
-  [cyan]/help[/cyan]            show this help
-  [cyan]/quit[/cyan]            exit
+  [cyan]/tables[/cyan]            list all tables in the database
+  [cyan]/table <name>[/cyan]      switch to a different table
+  [cyan]/join <name>[/cyan]       load a related table schema for JOIN queries
+  [cyan]/joins[/cyan]             show tables currently loaded for JOIN context
+  [cyan]/btw[/cyan]               back to table selection (interactive)
+  [cyan]/schema[/cyan]            re-show current table schema
+  [cyan]/history[/cyan]           show query history for current table
+  [cyan]/help[/cyan]              show this help
+  [cyan]/quit[/cyan]              exit
 
+[dim]JOIN tip: load related tables with /join, then ask questions that span them.[/dim]
 Anything else is treated as a natural language question."""
 
 # ── slash commands metadata (used by completer + handler) ────────────────────
@@ -50,12 +53,17 @@ Anything else is treated as a natural language question."""
 _SLASH_COMMANDS: list[tuple[str, str]] = [
     ("/tables",  "list all tables in the database"),
     ("/table",   "switch to a table — /table <name>"),
+    ("/join",    "load related table for JOINs — /join <name>"),
+    ("/joins",   "show tables loaded in JOIN context"),
     ("/btw",     "back to table selection"),
     ("/schema",  "show current table schema"),
     ("/history", "show query history for this table"),
     ("/help",    "show all commands"),
     ("/quit",    "exit"),
 ]
+
+# commands that accept a table name as argument — used by completer
+_TABLE_ARG_CMD = re.compile(r"^/(table|join)\s+")
 
 _PROMPT_STYLE = Style.from_dict({
     "completion-menu.completion":         "bg:#1e1e2e fg:#cdd6f4",
@@ -82,8 +90,8 @@ class SlashCompleter(Completer):
         if not text.startswith("/"):
             return
 
-        # /table <partial_table_name>
-        m = re.match(r"^/table\s+", text)
+        # /table <name>  or  /join <name>  → complete table names
+        m = _TABLE_ARG_CMD.match(text)
         if m:
             partial = text[m.end():]
             for t in self._tables:
@@ -91,7 +99,7 @@ class SlashCompleter(Completer):
                     yield Completion(t, start_position=-len(partial), display_meta="table")
             return
 
-        # / or /partial — complete command
+        # / or /partial → complete command names
         for cmd, meta in _SLASH_COMMANDS:
             if cmd.startswith(text):
                 yield Completion(
@@ -205,6 +213,7 @@ async def _interactive_table_select(
 class _State:
     table_name: str
     schema: str
+    extra_schemas: dict[str, str] = field(default_factory=dict)  # tables loaded for JOINs
     should_exit: bool = False
     switch_table: bool = False
 
@@ -231,6 +240,31 @@ async def _handle_slash(
             return True
         state.table_name, state.schema = _load_table(args, conn, store)
         console.print(Panel(state.schema, title=f"[bold]{state.table_name}[/bold]", border_style="dim"))
+        return True
+
+    if cmd == "join":
+        if not args:
+            console.print("[yellow]Usage: /join <table_name>[/yellow]")
+            return True
+        if args not in tables:
+            console.print(f"[red]Table '{args}' not found. Use /tables to list.[/red]")
+            return True
+        if args == state.table_name:
+            console.print(f"[yellow]'{args}' is already the primary table.[/yellow]")
+            return True
+        _, join_schema = _load_table(args, conn, store)
+        state.extra_schemas[args] = join_schema
+        console.print(Panel(join_schema, title=f"[bold]JOIN context: {args}[/bold]", border_style="dim"))
+        console.print(f"[dim]Loaded {len(state.extra_schemas)} join table(s): {', '.join(state.extra_schemas)}[/dim]")
+        return True
+
+    if cmd == "joins":
+        if not state.extra_schemas:
+            console.print("[yellow]No JOIN tables loaded. Use /join <name> to add one.[/yellow]")
+        else:
+            console.print(f"[bold]JOIN context ({len(state.extra_schemas)} table(s)):[/bold]")
+            for t in state.extra_schemas:
+                console.print(f"  [cyan]{t}[/cyan]")
         return True
 
     if cmd == "btw":
@@ -321,7 +355,13 @@ async def main() -> None:
                 # natural language → SQL
                 history = store.format_history_for_prompt(state.table_name)
                 with console.status("[cyan]building query…[/cyan]"):
-                    sql = await build_query(user_input, state.schema, state.table_name, history=history)
+                    sql = await build_query(
+                        user_input,
+                        state.schema,
+                        state.table_name,
+                        history=history,
+                        extra_schemas=state.extra_schemas or None,
+                    )
 
                 console.print(f"\n[dim]SQL →[/dim] [cyan]{sql}[/cyan]\n")
 
@@ -347,6 +387,7 @@ async def main() -> None:
                 if result is None:
                     break
                 state.table_name, state.schema = result
+                state.extra_schemas.clear()  # join context belongs to the previous table
 
 
 if __name__ == "__main__":

@@ -122,11 +122,86 @@ query_builder:
     - NEVER repeat the same SQL that already failed. Always fix the root cause.
 
     ════════════════════════════════════════════════════════════
+    JOIN QUERIES
+    ════════════════════════════════════════════════════════════
+    When the question spans multiple tables or references data not in the primary table,
+    write a JOIN query. Use the FK constraints in the schema to find join conditions.
+
+    JOIN TYPE SELECTION:
+    - INNER JOIN  — use when both sides must have a match (most common)
+    - LEFT JOIN   — use when you want all rows from the left table even if no match on right
+    - RIGHT JOIN  — rarely needed; prefer LEFT JOIN with tables swapped
+    - FULL OUTER  — use only when the question explicitly asks for unmatched rows on both sides
+
+    ALWAYS:
+    - Assign a short alias to EVERY table: "orders" AS "o", "users" AS "u", "products" AS "p"
+    - Qualify EVERY column with its alias: "o"."id", "u"."name" — never a bare column name when joining
+    - Double-quote ALL table names AND column names including in ON conditions
+    - Use the FK constraint from the schema to determine which columns to join on
+    - When multiple tables have a column with the same name (e.g. "id", "createdAt"),
+      always prefix with alias — never let ambiguity reach the database
+
+    FOREIGN KEY DETECTION:
+    The schema Constraints section shows FK relationships, e.g.:
+      orders_userId_fkey: FOREIGN KEY ("userId") REFERENCES users("id")
+      order_items_orderId_fkey: FOREIGN KEY ("orderId") REFERENCES orders("id")
+      order_items_productId_fkey: FOREIGN KEY ("productId") REFERENCES products("id")
+
+    TWO-TABLE JOIN EXAMPLE:
+    FKs: orders."userId" → users."id"
+    Question: "show me orders with the customer name"
+    ```sql
+    SELECT "o"."id", "o"."total", "o"."status", "u"."name"
+    FROM "orders" AS "o"
+    INNER JOIN "users" AS "u" ON "o"."userId" = "u"."id"
+    ORDER BY "o"."createdAt" DESC
+    LIMIT 50
+    ```
+
+    THREE-TABLE JOIN EXAMPLE:
+    FKs: order_items."orderId" → orders."id", order_items."productId" → products."id"
+    Question: "show me orders with customer name and product details"
+    ```sql
+    SELECT "o"."id"         AS "orderId",
+           "u"."name"       AS "customerName",
+           "p"."name"       AS "productName",
+           "oi"."quantity",
+           "oi"."unitPrice",
+           "o"."createdAt"
+    FROM "orders"      AS "o"
+    INNER JOIN "users"       AS "u"  ON "o"."userId"    = "u"."id"
+    INNER JOIN "order_items" AS "oi" ON "oi"."orderId"  = "o"."id"
+    INNER JOIN "products"    AS "p"  ON "oi"."productId"= "p"."id"
+    ORDER BY "o"."createdAt" DESC
+    LIMIT 50
+    ```
+
+    N-TABLE JOINS — GENERAL RULES:
+    - Chain JOINs by following FK relationships hop by hop
+    - Each new JOIN adds one table; reference its columns via its alias from that point forward
+    - Use column aliases (AS "customerName") when the same logical name appears in multiple tables
+    - Prefer CTEs for readability when more than 3 tables are joined:
+      WITH base AS (SELECT ... FROM "a" JOIN "b" ON ...)
+      SELECT ... FROM base JOIN "c" ON ...
+
+    WRONG (ambiguous columns, no aliases, unquoted):
+    ```sql
+    SELECT id, total, name FROM orders JOIN users ON orders.userId = users.id
+    ```
+
+    If a related table schema is provided under "Related table: <name>", use its column
+    names exactly as shown — never guess what columns exist in joined tables.
+
+    ════════════════════════════════════════════════════════════
     SCHEMA IS THE ONLY SOURCE OF TRUTH
     ════════════════════════════════════════════════════════════
     Use ONLY column names and types listed in the schema provided.
     Do not invent columns. Do not assume columns exist based on common patterns.
     If the schema has no "email" column, do not reference "email".
+    If a JOIN references a table whose schema was NOT provided, output:
+    ```sql
+    -- CANNOT_ANSWER: schema for table "<name>" not loaded — use /join <name> to load it
+    ```
 
 
 query_executor:

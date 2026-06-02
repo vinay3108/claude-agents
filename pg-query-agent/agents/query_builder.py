@@ -27,26 +27,40 @@ def extract_sql(text: str) -> str:
 
 
 async def build_query(
-    question: str, schema: str, table: str, history: str = ""
+    question: str,
+    schema: str,
+    table: str,
+    history: str = "",
+    extra_schemas: dict[str, str] | None = None,
 ) -> str:
     """
     Convert a natural language question into a SQL SELECT statement.
     Uses Claude via Claude Code SDK — no API key required.
 
     Args:
-        question: Natural language question from the user.
-        schema:   Formatted schema string for the target table.
-        table:    Table name.
-        history:  Optional conversation history from ContextStore — injected
-                  into the prompt so Claude can avoid repeating past errors.
+        question:      Natural language question from the user.
+        schema:        Formatted schema string for the primary table.
+        table:         Primary table name.
+        history:       Conversation history from ContextStore (avoids repeating errors).
+        extra_schemas: Schemas of related tables loaded for JOIN queries.
+                       Injected into prompt so Claude can write correct JOIN conditions.
     """
     cfg = _load_config()
 
     history_block = f"\n{history}\n" if history else ""
 
+    related_block = ""
+    if extra_schemas:
+        parts = [
+            f"--- Related table: {t} ---\n{s}"
+            for t, s in extra_schemas.items()
+        ]
+        related_block = "\n" + "\n\n".join(parts) + "\n"
+
     prompt = (
-        f"Table: {table}\n\n"
+        f"Primary table: {table}\n\n"
         f"Schema:\n{schema}\n"
+        f"{related_block}"
         f"{history_block}\n"
         f"Question: {question}\n\n"
         "Generate the SQL SELECT query."
