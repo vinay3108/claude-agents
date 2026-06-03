@@ -1,5 +1,11 @@
 import { LeetCodeRateLimiter } from './LeetCodeRateLimiter'
-import type { LeetCodeContestInfo, LeetCodeTopicStat, LeetCodeUserStats } from './types'
+import type {
+  LeetCodeContestInfo,
+  LeetCodeRecentSubmission,
+  LeetCodeSubmissionDetails,
+  LeetCodeTopicStat,
+  LeetCodeUserStats,
+} from './types'
 
 const GRAPHQL_URL = 'https://leetcode.com/graphql'
 
@@ -32,6 +38,30 @@ const CONTEST_QUERY = `
       rating
       globalRanking
       attendedContestsCount
+    }
+  }
+`
+
+const RECENT_SUBMISSIONS_QUERY = `
+  query recentAcSubmissions($username: String!, $limit: Int!) {
+    recentAcSubmissionList(username: $username, limit: $limit) {
+      id
+      title
+      titleSlug
+      timestamp
+      lang
+    }
+  }
+`
+
+const SUBMISSION_DETAILS_QUERY = `
+  query submissionDetails($submissionId: Int!) {
+    submissionDetails(submissionId: $submissionId) {
+      code
+      lang { verboseName }
+      runtime
+      memory
+      question { title titleSlug difficulty }
     }
   }
 `
@@ -108,6 +138,41 @@ export class LeetCodeGraphQLClient {
       rating: ranking.rating,
       ranking: ranking.globalRanking,
       attendedContestsCount: ranking.attendedContestsCount,
+    }
+  }
+
+  async getRecentSubmissions(username: string, limit = 20): Promise<LeetCodeRecentSubmission[]> {
+    await this.rateLimiter.acquire()
+    const data = await this.query(RECENT_SUBMISSIONS_QUERY, { username, limit })
+    const list = data['recentAcSubmissionList'] as Array<{
+      id: string
+      title: string
+      titleSlug: string
+      timestamp: string
+      lang: string
+    }> | null
+    return list ?? []
+  }
+
+  async getSubmissionDetails(submissionId: string): Promise<LeetCodeSubmissionDetails | null> {
+    await this.rateLimiter.acquire()
+    const data = await this.query(SUBMISSION_DETAILS_QUERY, { submissionId: Number(submissionId) })
+    const details = data['submissionDetails'] as {
+      code: string
+      lang: { verboseName: string }
+      runtime: string
+      memory: string
+      question: { title: string; titleSlug: string; difficulty: string }
+    } | null
+    if (!details) return null
+    return {
+      code: details.code,
+      lang: details.lang?.verboseName ?? '',
+      runtime: details.runtime,
+      memory: details.memory,
+      difficulty: details.question?.difficulty ?? '',
+      title: details.question?.title ?? '',
+      titleSlug: details.question?.titleSlug ?? '',
     }
   }
 

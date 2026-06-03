@@ -79,7 +79,7 @@ export class SupabaseSnapshotRepository implements ISnapshotRepository {
   }
 
   async save(snapshot: DailySnapshot): Promise<DailySnapshot> {
-    await this.db
+    const [saved] = await this.db
       .insert(dailySnapshots)
       .values({
         id: snapshot.id,
@@ -105,6 +105,9 @@ export class SupabaseSnapshotRepository implements ISnapshotRepository {
           ranking: snapshot.ranking,
         },
       })
+      .returning({ id: dailySnapshots.id })
+
+    const savedSnapshotId = saved?.id ?? snapshot.id
 
     if (snapshot.topicProgress.length > 0) {
       const slugs = snapshot.topicProgress.map((tp) => tp.topicSlug)
@@ -120,7 +123,7 @@ export class SupabaseSnapshotRepository implements ISnapshotRepository {
           const topicId = slugToId.get(tp.topicSlug)
           if (!topicId) return null
           return {
-            snapshotId: snapshot.id,
+            snapshotId: savedSnapshotId,
             topicId,
             solved: tp.solved,
             attempted: tp.attempted,

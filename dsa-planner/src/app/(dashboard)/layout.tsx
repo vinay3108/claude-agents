@@ -19,6 +19,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <span className="font-semibold tracking-tight">DSA Analyzer</span>
           <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">Dashboard</Link>
           <Link href="/recommendations" className="text-sm text-muted-foreground hover:text-foreground">Recommendations</Link>
+          <Link href="/notes" className="text-sm text-muted-foreground hover:text-foreground">Notes</Link>
           <Link href="/settings" className="text-sm text-muted-foreground hover:text-foreground">Settings</Link>
         </div>
         <div className="flex items-center gap-3">

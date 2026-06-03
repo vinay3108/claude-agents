@@ -6,6 +6,7 @@ import type { AnalyticsResult } from '@/application/services/AnalyticsService'
 import { buildAnalyzeProgressPrompt } from './prompts/analyze-progress'
 import { buildGenerateRecommendationsPrompt } from './prompts/generate-recommendations'
 import { buildGenerateStudyPlanPrompt } from './prompts/generate-study-plan'
+import { buildGenerateProblemNotePrompt } from './prompts/generate-problem-note'
 import type { AIProvider } from './AIProvider'
 
 interface RecommendationRaw {
@@ -22,6 +23,24 @@ interface StudyPlanItemRaw {
   topicSlug: string | null
   title: string
   description: string
+}
+
+interface ProblemNoteRaw {
+  pattern: string
+  trick: string
+  whenToUse: string
+  timeComplexity: string
+  spaceComplexity: string
+  codeSnippet: string
+}
+
+export interface ProblemNoteFields {
+  pattern: string
+  trick: string
+  whenToUse: string
+  timeComplexity: string
+  spaceComplexity: string
+  codeSnippet: string
 }
 
 export class AIOrchestrationService {
@@ -101,6 +120,36 @@ export class AIOrchestrationService {
     const prompt = buildAnalyzeProgressPrompt(analytics)
     const response = await this.ai.runPrompt(prompt)
     return response.content
+  }
+
+  async generateProblemNote(
+    title: string,
+    lang: string,
+    rawCode: string,
+  ): Promise<ProblemNoteFields> {
+    const empty: ProblemNoteFields = {
+      pattern: '',
+      trick: '',
+      whenToUse: '',
+      timeComplexity: '',
+      spaceComplexity: '',
+      codeSnippet: '',
+    }
+    try {
+      const prompt = buildGenerateProblemNotePrompt(title, lang, rawCode)
+      const response = await this.ai.runPrompt(prompt)
+      const parsed = this.parseJson<ProblemNoteRaw>(response.content)
+      return {
+        pattern: parsed.pattern ?? '',
+        trick: parsed.trick ?? '',
+        whenToUse: parsed.whenToUse ?? '',
+        timeComplexity: parsed.timeComplexity ?? '',
+        spaceComplexity: parsed.spaceComplexity ?? '',
+        codeSnippet: parsed.codeSnippet ?? '',
+      }
+    } catch {
+      return empty
+    }
   }
 
   private parseJson<T>(content: string): Partial<T> {

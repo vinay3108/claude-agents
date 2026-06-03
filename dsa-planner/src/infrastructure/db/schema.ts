@@ -181,6 +181,33 @@ export const aiInteractions = pgTable(
   (t) => [index('idx_ai_interactions_user').on(t.userId, t.createdAt)],
 )
 
+export const problemNotes = pgTable(
+  'problem_notes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    submissionId: text('submission_id').notNull(),
+    titleSlug: text('title_slug').notNull(),
+    title: text('title').notNull(),
+    difficulty: text('difficulty').notNull().default(''),
+    lang: text('lang').notNull().default(''),
+    pattern: text('pattern').notNull().default(''),
+    trick: text('trick').notNull().default(''),
+    whenToUse: text('when_to_use').notNull().default(''),
+    timeComplexity: text('time_complexity').notNull().default(''),
+    spaceComplexity: text('space_complexity').notNull().default(''),
+    codeSnippet: text('code_snippet').notNull().default(''),
+    rawCode: text('raw_code').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('idx_problem_notes_user').on(t.userId, t.createdAt),
+    unique().on(t.userId, t.submissionId),
+  ],
+)
+
 // ─── Local auth tables (used only when AUTH_PROVIDER=local) ───────────────────
 
 export const localAuthUsers = pgTable('local_auth_users', {

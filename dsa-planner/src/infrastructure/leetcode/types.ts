@@ -26,3 +26,21 @@ export interface LeetCodeManualEntry {
   mediumSolved: number
   hardSolved: number
 }
+
+export interface LeetCodeRecentSubmission {
+  id: string
+  title: string
+  titleSlug: string
+  timestamp: string
+  lang: string
+}
+
+export interface LeetCodeSubmissionDetails {
+  code: string
+  lang: string
+  runtime: string
+  memory: string
+  difficulty: string
+  title: string
+  titleSlug: string
+}
