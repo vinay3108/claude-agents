@@ -1,0 +1,1 @@
+ALTER TABLE "system_design_sessions" ALTER COLUMN "difficulty" DROP DEFAULT;

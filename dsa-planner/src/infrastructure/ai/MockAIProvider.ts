@@ -21,4 +21,9 @@ export class MockAIProvider implements AIProvider {
       model: options?.model ?? 'mock',
     }
   }
+
+  async *streamPrompt(_prompt: string): AsyncIterable<string> {
+    yield 'Hint: Consider using a hash map to track elements you have seen. '
+    yield 'This allows O(1) lookup instead of scanning the entire array each time.'
+  }
 }

@@ -208,6 +208,169 @@ export const problemNotes = pgTable(
   ],
 )
 
+export const gapAnalyses = pgTable(
+  'gap_analyses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    snapshotId: uuid('snapshot_id')
+      .notNull()
+      .references(() => dailySnapshots.id),
+    weakTopics: jsonb('weak_topics').notNull().default([]),
+    strongTopics: jsonb('strong_topics').notNull().default([]),
+    readinessScore: decimal('readiness_score', { precision: 5, scale: 2 })
+      .notNull()
+      .default('0'),
+    aiSummary: text('ai_summary').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('idx_gap_analyses_user').on(t.userId, t.createdAt)],
+)
+
+export const interviewStatusEnum = pgEnum('interview_status', [
+  'active',
+  'completed',
+  'abandoned',
+])
+
+export const interviewDifficultyEnum = pgEnum('interview_difficulty', [
+  'easy',
+  'medium',
+  'hard',
+])
+
+export const interviewSessions = pgTable(
+  'interview_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    topic: text('topic').notNull(),
+    difficulty: interviewDifficultyEnum('difficulty').notNull().default('medium'),
+    status: interviewStatusEnum('status').notNull().default('active'),
+    overallScore: decimal('overall_score', { precision: 4, scale: 1 }),
+    aiFeedback: text('ai_feedback'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => [index('idx_interview_sessions_user').on(t.userId, t.startedAt)],
+)
+
+export const interviewQuestions = pgTable(
+  'interview_questions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => interviewSessions.id, { onDelete: 'cascade' }),
+    orderIndex: integer('order_index').notNull(),
+    questionText: text('question_text').notNull(),
+    hints: jsonb('hints').notNull().default([]),
+    expectedConcepts: jsonb('expected_concepts').notNull().default([]),
+    boilerplateCode: jsonb('boilerplate_code').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('idx_interview_questions_session').on(t.sessionId, t.orderIndex)],
+)
+
+export const interviewResponses = pgTable(
+  'interview_responses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => interviewQuestions.id, { onDelete: 'cascade' }),
+    userCode: text('user_code').notNull().default(''),
+    userExplanation: text('user_explanation').notNull().default(''),
+    score: decimal('score', { precision: 4, scale: 1 }),
+    feedback: text('feedback'),
+    hintsUsed: integer('hints_used').notNull().default(0),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('idx_interview_responses_question').on(t.questionId)],
+)
+
+// ─── System Design tables ─────────────────────────────────────────────────────
+
+export const systemDesignCategoryEnum = pgEnum('system_design_category', [
+  'classic',
+  'social',
+  'infrastructure',
+  'product',
+])
+
+export const systemDesignDifficultyEnum = pgEnum('system_design_difficulty', [
+  'junior',
+  'senior',
+  'staff',
+])
+
+export const systemDesignStatusEnum = pgEnum('system_design_status', [
+  'active',
+  'completed',
+  'abandoned',
+])
+
+export const systemDesignSessions = pgTable(
+  'system_design_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    topic: text('topic').notNull(),
+    category: systemDesignCategoryEnum('category').notNull(),
+    difficulty: systemDesignDifficultyEnum('difficulty').notNull(),
+    status: systemDesignStatusEnum('status').notNull().default('active'),
+    overallScore: decimal('overall_score', { precision: 4, scale: 1 }),
+    aiFeedback: text('ai_feedback'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (t) => [index('idx_system_design_sessions_user').on(t.userId, t.startedAt)],
+)
+
+export const systemDesignQuestions = pgTable(
+  'system_design_questions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => systemDesignSessions.id, { onDelete: 'cascade' }),
+    questionText: text('question_text').notNull(),
+    requirements: jsonb('requirements').notNull().default([]),
+    hints: jsonb('hints').notNull().default([]),
+    evaluationDimensions: jsonb('evaluation_dimensions').notNull().default([]),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('idx_system_design_questions_session').on(t.sessionId)],
+)
+
+export const systemDesignResponses = pgTable(
+  'system_design_responses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => systemDesignQuestions.id, { onDelete: 'cascade' }),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => systemDesignSessions.id, { onDelete: 'cascade' }),
+    explanation: text('explanation').notNull(),
+    diagramUrl: text('diagram_url'),
+    dimensionScores: jsonb('dimension_scores').notNull().default({}),
+    overallScore: decimal('overall_score', { precision: 4, scale: 1 }),
+    feedback: text('feedback'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('idx_system_design_responses_session').on(t.sessionId)],
+)
+
 // ─── Local auth tables (used only when AUTH_PROVIDER=local) ───────────────────
 
 export const localAuthUsers = pgTable('local_auth_users', {
@@ -231,3 +394,48 @@ export const localAuthSessions = pgTable(
   },
   (t) => [index('idx_local_sessions_token').on(t.sessionToken)],
 )
+
+// ─── Coach Chat tables ────────────────────────────────────────────────────────
+
+export const chatRoleEnum = pgEnum('chat_role', ['user', 'assistant'])
+
+export const coachChatSessions = pgTable('coach_chat_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const coachChatMessages = pgTable(
+  'coach_chat_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => coachChatSessions.id, { onDelete: 'cascade' }),
+    role: chatRoleEnum('role').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('idx_coach_chat_messages_session').on(t.sessionId, t.createdAt)],
+)
+
+// ─── LinkedIn connection ──────────────────────────────────────────────────────
+// One LinkedIn account per user, and each LinkedIn account links to one user.
+// Stores only the public profile from "Sign in with LinkedIn" (no tokens).
+
+export const linkedinConnections = pgTable('linkedin_connections', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  linkedinSub: text('linkedin_sub').notNull().unique(),
+  name: text('name').notNull(),
+  email: text('email'),
+  pictureUrl: text('picture_url'),
+  connectedAt: timestamp('connected_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})

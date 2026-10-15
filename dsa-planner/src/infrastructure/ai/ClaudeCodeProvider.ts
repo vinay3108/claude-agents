@@ -17,6 +17,11 @@ export class ClaudeCodeProvider implements AIProvider {
   async runPrompt(prompt: string, options?: AIOptions): Promise<AIResponse> {
     const model = options?.model ?? process.env['CLAUDE_MODEL'] ?? 'claude-sonnet-4-6'
 
+    // Vision requests require the SDK (execFile/CLI doesn't support image input)
+    if (options?.imageBase64) {
+      return this.runPromptWithVision(prompt, options.imageBase64, options.imageMimeType ?? 'image/png', model, options)
+    }
+
     const args = [
       '--print', prompt,
       '--output-format', 'json',
@@ -45,6 +50,65 @@ export class ClaudeCodeProvider implements AIProvider {
       promptTokens,
       completionTokens,
       model: modelEntry?.[0] ?? model,
+    }
+  }
+
+  private async runPromptWithVision(
+    prompt: string,
+    imageBase64: string,
+    imageMimeType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif',
+    model: string,
+    options?: AIOptions,
+  ): Promise<AIResponse> {
+    const { default: Anthropic } = await import('@anthropic-ai/sdk')
+    const client = new Anthropic()
+
+    const message = await client.messages.create({
+      model,
+      max_tokens: options?.maxTokens ?? 4096,
+      ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: imageMimeType, data: imageBase64 },
+            },
+            { type: 'text', text: prompt },
+          ],
+        },
+      ],
+    })
+
+    const content = message.content[0]?.type === 'text' ? message.content[0].text : ''
+    return {
+      content,
+      promptTokens: message.usage.input_tokens,
+      completionTokens: message.usage.output_tokens,
+      model: message.model,
+    }
+  }
+
+  async *streamPrompt(prompt: string, options?: AIOptions): AsyncIterable<string> {
+    const { default: Anthropic } = await import('@anthropic-ai/sdk')
+    const client = new Anthropic()
+    const model = options?.model ?? process.env['CLAUDE_MODEL'] ?? 'claude-haiku-4-5-20251001'
+
+    const stream = client.messages.stream({
+      model,
+      max_tokens: options?.maxTokens ?? 1024,
+      ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    for await (const event of stream) {
+      if (
+        event.type === 'content_block_delta' &&
+        event.delta.type === 'text_delta'
+      ) {
+        yield event.delta.text
+      }
     }
   }
 }

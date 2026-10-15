@@ -10,10 +10,10 @@ interface RecommendationCardProps {
 }
 
 const TYPE_COLORS = {
-  topic: 'bg-blue-100 text-blue-800',
-  problem: 'bg-green-100 text-green-800',
-  pattern: 'bg-purple-100 text-purple-800',
-  revision: 'bg-orange-100 text-orange-800',
+  topic: 'border-info/30 bg-info/10 text-info',
+  problem: 'border-easy/30 bg-easy/10 text-easy',
+  pattern: 'border-chart-4/30 bg-chart-4/10 text-chart-4',
+  revision: 'border-ember/30 bg-ember/10 text-ember',
 }
 
 export function RecommendationCard({ recommendation: rec, onComplete }: RecommendationCardProps) {
@@ -40,7 +40,7 @@ export function RecommendationCard({ recommendation: rec, onComplete }: Recommen
               href={rec.metadata.leetcodeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
             >
               Practice on LeetCode →
             </a>

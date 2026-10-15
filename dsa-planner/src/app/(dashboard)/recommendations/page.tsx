@@ -6,6 +6,7 @@ import { RecommendationCard } from '@/presentation/components/recommendations/Re
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Recommendation } from '@/domain/entities/Recommendation'
 import type { ApiSuccess } from '@/shared/utils/api-response'
+import { PageHeader } from '@/presentation/components/layout/PageHeader'
 
 async function fetchRecommendations(): Promise<Recommendation[]> {
   const res = await fetch('/api/recommendations')
@@ -35,15 +36,16 @@ export default function RecommendationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Recommendations</h1>
-        <Button
-          onClick={() => generateMutation.mutate()}
-          disabled={generateMutation.isPending}
-        >
-          {generateMutation.isPending ? 'Generating…' : 'Generate New'}
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="// track · next steps"
+        title="Recommendations"
+        description="AI-picked topics and problems based on your weakest areas."
+        actions={
+          <Button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
+            {generateMutation.isPending ? 'Generating…' : 'Generate new'}
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2">

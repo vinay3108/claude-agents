@@ -1,75 +1,27 @@
-import { randomUUID } from 'crypto'
 import type { Recommendation } from '@/domain/entities/Recommendation'
-import type { StudyPlan, StudyPlanItem } from '@/domain/entities/StudyPlan'
-import { UserId } from '@/domain/value-objects/UserId'
+import type { StudyPlan } from '@/domain/entities/StudyPlan'
 import type { AnalyticsResult } from '@/application/services/AnalyticsService'
-import { buildAnalyzeProgressPrompt } from './prompts/analyze-progress'
-import { buildGenerateRecommendationsPrompt } from './prompts/generate-recommendations'
-import { buildGenerateStudyPlanPrompt } from './prompts/generate-study-plan'
-import { buildGenerateProblemNotePrompt } from './prompts/generate-problem-note'
+import { AnalyticsAgent } from './agents/AnalyticsAgent'
+import type { ProblemNoteFields } from './agents/AnalyticsAgent'
 import type { AIProvider } from './AIProvider'
+import { SystemDesignAgent } from './agents/SystemDesignAgent'
+import type { SystemDesignSession } from '@/domain/entities/SystemDesignSession'
+import type { SystemDesignQuestion } from '@/domain/entities/SystemDesignQuestion'
 
-interface RecommendationRaw {
-  type: 'topic' | 'problem' | 'pattern' | 'revision'
-  title: string
-  description: string
-  reasoning: string
-  leetcodeUrl?: string
-  priority: number
-}
-
-interface StudyPlanItemRaw {
-  day: number
-  topicSlug: string | null
-  title: string
-  description: string
-}
-
-interface ProblemNoteRaw {
-  pattern: string
-  trick: string
-  whenToUse: string
-  timeComplexity: string
-  spaceComplexity: string
-  codeSnippet: string
-}
-
-export interface ProblemNoteFields {
-  pattern: string
-  trick: string
-  whenToUse: string
-  timeComplexity: string
-  spaceComplexity: string
-  codeSnippet: string
-}
+export type { ProblemNoteFields }
 
 export class AIOrchestrationService {
-  constructor(private readonly ai: AIProvider) {}
+  private readonly analyticsAgent: AnalyticsAgent
+
+  constructor(private readonly ai: AIProvider) {
+    this.analyticsAgent = new AnalyticsAgent(ai)
+  }
 
   async generateRecommendations(
     userId: string,
     analytics: AnalyticsResult,
   ): Promise<Recommendation[]> {
-    const prompt = buildGenerateRecommendationsPrompt(analytics)
-    const response = await this.ai.runPrompt(prompt)
-
-    const parsed = this.parseJson<{ recommendations: RecommendationRaw[] }>(response.content)
-    const now = new Date()
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-
-    return (parsed.recommendations ?? []).map((r) => ({
-      id: randomUUID(),
-      userId: UserId.fromString(userId),
-      type: r.type,
-      title: r.title,
-      description: r.description,
-      reasoning: r.reasoning,
-      priority: r.priority,
-      metadata: r.leetcodeUrl ? { leetcodeUrl: r.leetcodeUrl } : {},
-      isCompleted: false,
-      createdAt: now,
-      expiresAt,
-    }))
+    return this.analyticsAgent.generateRecommendations(userId, analytics)
   }
 
   async generateStudyPlan(
@@ -78,48 +30,11 @@ export class AIOrchestrationService {
     targetDays: number,
     targetCompany: string | null,
   ): Promise<StudyPlan> {
-    const prompt = buildGenerateStudyPlanPrompt(analytics, targetDays, targetCompany)
-    const response = await this.ai.runPrompt(prompt)
-
-    const parsed = this.parseJson<{ title: string; items: StudyPlanItemRaw[] }>(response.content)
-    const now = new Date()
-    const targetDate = new Date(now.getTime() + targetDays * 24 * 60 * 60 * 1000)
-
-    const items: StudyPlanItem[] = (parsed.items ?? []).map((item, index) => {
-      const scheduledDate = new Date(now.getTime() + (item.day - 1) * 24 * 60 * 60 * 1000)
-      return {
-        id: randomUUID(),
-        studyPlanId: '',
-        topicSlug: item.topicSlug,
-        problemSlug: null,
-        title: item.title,
-        description: item.description,
-        orderIndex: index,
-        isCompleted: false,
-        scheduledDate,
-        completedAt: null,
-      }
-    })
-
-    const planId = randomUUID()
-    const itemsWithPlanId = items.map((item) => ({ ...item, studyPlanId: planId }))
-
-    return {
-      id: planId,
-      userId: UserId.fromString(userId),
-      title: parsed.title ?? `${targetDays}-Day Study Plan`,
-      targetCompany: targetCompany,
-      targetDate,
-      status: 'active',
-      items: itemsWithPlanId,
-      createdAt: now,
-    }
+    return this.analyticsAgent.generateStudyPlan(userId, analytics, targetDays, targetCompany)
   }
 
   async analyzeProgress(analytics: AnalyticsResult): Promise<string> {
-    const prompt = buildAnalyzeProgressPrompt(analytics)
-    const response = await this.ai.runPrompt(prompt)
-    return response.content
+    return this.analyticsAgent.analyzeProgress(analytics)
   }
 
   async generateProblemNote(
@@ -127,38 +42,14 @@ export class AIOrchestrationService {
     lang: string,
     rawCode: string,
   ): Promise<ProblemNoteFields> {
-    const empty: ProblemNoteFields = {
-      pattern: '',
-      trick: '',
-      whenToUse: '',
-      timeComplexity: '',
-      spaceComplexity: '',
-      codeSnippet: '',
-    }
-    try {
-      const prompt = buildGenerateProblemNotePrompt(title, lang, rawCode)
-      const response = await this.ai.runPrompt(prompt)
-      const parsed = this.parseJson<ProblemNoteRaw>(response.content)
-      return {
-        pattern: parsed.pattern ?? '',
-        trick: parsed.trick ?? '',
-        whenToUse: parsed.whenToUse ?? '',
-        timeComplexity: parsed.timeComplexity ?? '',
-        spaceComplexity: parsed.spaceComplexity ?? '',
-        codeSnippet: parsed.codeSnippet ?? '',
-      }
-    } catch {
-      return empty
-    }
+    return this.analyticsAgent.generateProblemNote(title, lang, rawCode)
   }
 
-  private parseJson<T>(content: string): Partial<T> {
-    const jsonMatch = content.match(/\{[\s\S]*\}/)
-    if (!jsonMatch?.[0]) return {}
-    try {
-      return JSON.parse(jsonMatch[0]) as T
-    } catch {
-      return {}
-    }
+  async generateSystemDesignQuestion(
+    session: SystemDesignSession,
+    analytics: AnalyticsResult,
+  ): Promise<SystemDesignQuestion> {
+    const agent = new SystemDesignAgent(this.ai)
+    return agent.generateQuestion(session, analytics)
   }
 }

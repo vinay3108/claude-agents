@@ -7,6 +7,9 @@ export type ErrorCode =
   | 'LEETCODE_PRIVATE_PROFILE'
   | 'SYNC_COOLDOWN_ACTIVE'
   | 'AI_PROVIDER_ERROR'
+  | 'LINKEDIN_NOT_CONFIGURED'
+  | 'LINKEDIN_AUTH_FAILED'
+  | 'LINKEDIN_ALREADY_LINKED'
   | 'INTERNAL_ERROR'
 
 export class AppError extends Error {

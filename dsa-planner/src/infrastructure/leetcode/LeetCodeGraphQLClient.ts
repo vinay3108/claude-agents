@@ -1,6 +1,8 @@
 import { LeetCodeRateLimiter } from './LeetCodeRateLimiter'
+import { PUBLIC_PROFILE_QUERY, parsePublicProfile } from './publicProfile'
 import type {
   LeetCodeContestInfo,
+  LeetCodePublicProfile,
   LeetCodeRecentSubmission,
   LeetCodeSubmissionDetails,
   LeetCodeTopicStat,
@@ -8,6 +10,7 @@ import type {
 } from './types'
 
 const GRAPHQL_URL = 'https://leetcode.com/graphql'
+const REQUEST_TIMEOUT_MS = 15_000
 
 const USER_STATS_QUERY = `
   query getUserStats($username: String!) {
@@ -176,6 +179,12 @@ export class LeetCodeGraphQLClient {
     }
   }
 
+  /** Public profile (name, avatar, badges, contest) in one request. Null if the user does not exist. */
+  async getPublicProfile(username: string): Promise<LeetCodePublicProfile | null> {
+    await this.rateLimiter.acquire()
+    return parsePublicProfile(await this.query(PUBLIC_PROFILE_QUERY, { username }))
+  }
+
   private async query(
     query: string,
     variables: Record<string, unknown>,
@@ -192,6 +201,7 @@ export class LeetCodeGraphQLClient {
       method: 'POST',
       headers,
       body: JSON.stringify({ query, variables }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) throw new Error(`LeetCode API error: ${response.status}`)

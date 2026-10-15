@@ -5,6 +5,26 @@ import { WeaknessDetector } from '@/domain/services/WeaknessDetector'
 import { VelocityCalculator } from '@/domain/services/VelocityCalculator'
 import { MasteryScore } from '@/domain/value-objects/MasteryScore'
 import type { TopicProgress } from '@/domain/entities/DailySnapshot'
+import { AnalyticsService } from '@/application/services/AnalyticsService'
+import { createDailySnapshot } from '@/domain/entities/DailySnapshot'
+import type { DailySnapshot } from '@/domain/entities/DailySnapshot'
+
+function makeSnapshot(date: string, totalSolved: number): DailySnapshot {
+  return createDailySnapshot({
+    id: `snap-${date}`,
+    userId: 'user-1' as import('@/domain/value-objects/UserId').UserId,
+    leetcodeProfileId: 'profile-1',
+    snapshotDate: new Date(date),
+    totalSolved,
+    easySolved: 0,
+    mediumSolved: 0,
+    hardSolved: 0,
+    totalSubmissions: 0,
+    ranking: null,
+    contestRating: null,
+    topicProgress: [],
+  })
+}
 
 function makeTopicProgress(slug: string, solved: number, total = 100): TopicProgress {
   const mastery = MasteryScore.of(Math.min(100, Math.round((solved / total) * 100)))
@@ -103,5 +123,27 @@ describe('VelocityCalculator', () => {
   it('rounds to 2 decimal places', () => {
     const velocity = calc.compute(0, 1, 3)
     expect(velocity).toBeCloseTo(0.33, 1)
+  })
+})
+
+describe('AnalyticsService', () => {
+  const service = new AnalyticsService()
+
+  it('returns snapshotTrend sorted oldest to newest', () => {
+    // snapshots arrive newest-first from DB
+    const snapshots = [
+      makeSnapshot('2026-06-04', 150),
+      makeSnapshot('2026-06-03', 140),
+      makeSnapshot('2026-06-01', 130),
+    ]
+    const result = service.compute(snapshots)
+    expect(result.snapshotTrend).toHaveLength(3)
+    expect(result.snapshotTrend[0]).toEqual({ date: '2026-06-01', totalSolved: 130 })
+    expect(result.snapshotTrend[2]).toEqual({ date: '2026-06-04', totalSolved: 150 })
+  })
+
+  it('returns empty snapshotTrend for no snapshots', () => {
+    const result = service.compute([])
+    expect(result.snapshotTrend).toEqual([])
   })
 })

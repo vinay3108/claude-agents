@@ -13,6 +13,13 @@ import type { UserId } from '@/domain/value-objects/UserId'
 
 const SYNC_COOLDOWN_MS = (Number(process.env['LEETCODE_SYNC_COOLDOWN_SECONDS'] ?? 300)) * 1000
 
+// Logarithmic mastery: 200 problems solved ≈ 100%. Prevents easy/medium topics from
+// capping immediately (old linear formula hit 100% at just 50 problems).
+function computeTopicMastery(solved: number): number {
+  if (solved === 0) return 0
+  return Math.min(100, Math.round((Math.log10(solved + 1) / Math.log10(201)) * 100))
+}
+
 export interface TakeDailySnapshotInput {
   userId: string
 }
@@ -66,7 +73,7 @@ export class TakeDailySnapshot {
       topicSlug: t.tagSlug,
       solved: t.problemsSolved,
       attempted: t.problemsSolved,
-      masteryScore: MasteryScore.of(Math.min(100, Math.round((t.problemsSolved / 50) * 100))),
+      masteryScore: MasteryScore.of(computeTopicMastery(t.problemsSolved)),
     }))
 
     const snapshot = createDailySnapshot({

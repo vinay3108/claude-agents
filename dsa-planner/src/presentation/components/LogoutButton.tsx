@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export function LogoutButton() {
@@ -10,13 +11,23 @@ export function LogoutButton() {
 
   async function handleLogout() {
     setLoading(true)
-    await fetch('/api/auth/signout', { method: 'POST' })
-    router.push('/login')
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' })
+    } finally {
+      router.push('/login')
+    }
   }
 
   return (
-    <Button variant="ghost" size="sm" onClick={handleLogout} disabled={loading}>
-      {loading ? 'Signing out…' : 'Logout'}
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={handleLogout}
+      disabled={loading}
+      aria-label={loading ? 'Signing out' : 'Sign out'}
+      title="Sign out"
+    >
+      <LogOut />
     </Button>
   )
 }
