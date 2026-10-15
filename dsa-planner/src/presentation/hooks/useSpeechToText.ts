@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useSyncExternalStore } from 'react'
 
 interface SREvent extends Event {
   readonly results: { isFinal: boolean; [index: number]: { transcript: string } }[]
@@ -19,11 +19,14 @@ type SR = {
 
 type SRConstructor = new () => SR
 
+const noopSubscribe = () => () => undefined
+const browserSupportsSpeech = () => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
+
 export function useSpeechToText(onTranscript: (text: string) => void) {
   const [listening, setListening] = useState(false)
-  const [supported] = useState(
-    () => typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window),
-  )
+  // Server snapshot is `false`, so SSR and hydration render the same HTML; the
+  // client value is read after hydration (reading window in useState caused #418).
+  const supported = useSyncExternalStore(noopSubscribe, browserSupportsSpeech, () => false)
   const recognitionRef = useRef<SR | null>(null)
 
   const stop = useCallback(() => {

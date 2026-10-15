@@ -75,3 +75,13 @@ export interface LeetCodePublicProfile {
   badges: LeetCodeBadge[]
   contest: LeetCodePublicContest | null
 }
+
+/** A LeetCode problem, as listed in a study plan day. */
+export interface LeetCodeProblem {
+  number: number
+  title: string
+  slug: string
+  difficulty: 'Easy' | 'Medium' | 'Hard'
+  isPaidOnly: boolean
+  url: string
+}

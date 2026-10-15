@@ -1,7 +1,15 @@
 import { LeetCodeRateLimiter } from './LeetCodeRateLimiter'
 import { PUBLIC_PROFILE_QUERY, parsePublicProfile } from './publicProfile'
+import {
+  assertTopicSlug,
+  buildNumbersQuery,
+  buildTopicQuery,
+  parseNumbersResult,
+  parseTopicResult,
+} from './problemLookup'
 import type {
   LeetCodeContestInfo,
+  LeetCodeProblem,
   LeetCodePublicProfile,
   LeetCodeRecentSubmission,
   LeetCodeSubmissionDetails,
@@ -183,6 +191,22 @@ export class LeetCodeGraphQLClient {
   async getPublicProfile(username: string): Promise<LeetCodePublicProfile | null> {
     await this.rateLimiter.acquire()
     return parsePublicProfile(await this.query(PUBLIC_PROFILE_QUERY, { username }))
+  }
+
+  /** Problems by number (exact matches only, same order). One request for all numbers. */
+  async findProblemsByNumbers(numbers: readonly number[]): Promise<LeetCodeProblem[]> {
+    if (numbers.length === 0) return []
+    await this.rateLimiter.acquire()
+    const { query, variables } = buildNumbersQuery(numbers)
+    return parseNumbersResult(numbers, await this.query(query, variables))
+  }
+
+  /** Problems tagged with a topic, in LeetCode's default order. */
+  async findProblemsByTopic(topicSlug: string, limit: number): Promise<LeetCodeProblem[]> {
+    assertTopicSlug(topicSlug)
+    await this.rateLimiter.acquire()
+    const { query, variables } = buildTopicQuery(topicSlug, limit)
+    return parseTopicResult(topicSlug, await this.query(query, variables))
   }
 
   private async query(
