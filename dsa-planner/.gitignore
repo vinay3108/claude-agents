@@ -44,3 +44,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# takeUforward exports (third-party content, keep private)
+/data/tuf/

@@ -1,5 +1,6 @@
 import { createDrizzleClient } from '@/infrastructure/db/client'
 import { LeetCodeGraphQLClient } from '@/infrastructure/leetcode/LeetCodeGraphQLClient'
+import { cachedSubmissionCalendar } from '@/infrastructure/leetcode/cachedSubmissionCalendar'
 import { SupabaseLeetCodeProfileRepository } from '@/infrastructure/repositories/SupabaseLeetCodeProfileRepository'
 import { SupabaseSnapshotRepository } from '@/infrastructure/repositories/SupabaseSnapshotRepository'
 import { SupabaseProblemNoteRepository } from '@/infrastructure/repositories/SupabaseProblemNoteRepository'
@@ -29,6 +30,9 @@ export async function POST() {
     )
 
     const result = await useCase.execute({ userId: user.id })
+    // New submissions should show on the practice calendar straight away.
+    const profile = await profileRepo.findByUserId(user.id as Parameters<typeof profileRepo.findByUserId>[0])
+    if (profile) cachedSubmissionCalendar.invalidate(profile.username)
     return apiOk(result)
   } catch (err) {
     return apiError(err)

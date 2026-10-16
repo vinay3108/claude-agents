@@ -395,6 +395,9 @@ export const localAuthSessions = pgTable(
   (t) => [index('idx_local_sessions_token').on(t.sessionToken)],
 )
 
+// ─── Agent memory (sub-project A) ─────────────────────────────────────────────
+export * from './agentSchema'
+
 // ─── Coach Chat tables ────────────────────────────────────────────────────────
 
 export const chatRoleEnum = pgEnum('chat_role', ['user', 'assistant'])
@@ -439,3 +442,20 @@ export const linkedinConnections = pgTable('linkedin_connections', {
   connectedAt: timestamp('connected_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// ─── Practice reminders ───────────────────────────────────────────────────────
+// One row per user per 2-hour slot ("2026-10-15T12"). The unique key makes
+// claiming a slot atomic, so two servers or two checks never send twice.
+
+export const reminderSends = pgTable(
+  'reminder_sends',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    slot: text('slot').notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('reminder_sends_user_slot_key').on(t.userId, t.slot)],
+)

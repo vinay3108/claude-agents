@@ -11,6 +11,8 @@ export type ErrorCode =
   | 'LINKEDIN_AUTH_FAILED'
   | 'LINKEDIN_ALREADY_LINKED'
   | 'INTERNAL_ERROR'
+  | 'AGENT_BUSY'
+  | 'IMPORT_TOO_LARGE'
 
 export class AppError extends Error {
   constructor(

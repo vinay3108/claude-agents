@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { StudyPlan, StudyPlanItem, StudyPlanStatus } from '@/domain/entities/StudyPlan'
 import type { IStudyPlanRepository } from '@/domain/repositories/IStudyPlanRepository'
 import type { UserId } from '@/domain/value-objects/UserId'
@@ -87,6 +87,16 @@ export class SupabaseStudyPlanRepository implements IStudyPlanRepository {
       .update(studyPlanItems)
       .set({ isCompleted: true, completedAt })
       .where(eq(studyPlanItems.id, itemId))
+  }
+
+  async setItemCompleted(planId: string, itemId: string, completed: boolean): Promise<boolean> {
+    const rows = await this.db
+      .update(studyPlanItems)
+      .set({ isCompleted: completed, completedAt: completed ? new Date() : null })
+      // Scoping by plan id stops a caller from editing a day that belongs to another plan.
+      .where(and(eq(studyPlanItems.id, itemId), eq(studyPlanItems.studyPlanId, planId)))
+      .returning({ id: studyPlanItems.id })
+    return rows.length > 0
   }
 
   private toDomain(

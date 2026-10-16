@@ -1,5 +1,7 @@
 import { LeetCodeRateLimiter } from './LeetCodeRateLimiter'
 import { PUBLIC_PROFILE_QUERY, parsePublicProfile } from './publicProfile'
+import { SUBMISSION_CALENDAR_QUERY, parseSubmissionCalendar } from './submissionCalendar'
+import type { SubmissionCalendar } from './submissionCalendar'
 import {
   assertTopicSlug,
   buildNumbersQuery,
@@ -191,6 +193,12 @@ export class LeetCodeGraphQLClient {
   async getPublicProfile(username: string): Promise<LeetCodePublicProfile | null> {
     await this.rateLimiter.acquire()
     return parsePublicProfile(await this.query(PUBLIC_PROFILE_QUERY, { username }))
+  }
+
+  /** Per-day submission counts for one year. Null if the user does not exist. */
+  async getSubmissionCalendar(username: string, year: number): Promise<SubmissionCalendar | null> {
+    await this.rateLimiter.acquire()
+    return parseSubmissionCalendar(await this.query(SUBMISSION_CALENDAR_QUERY, { username, year }))
   }
 
   /** Problems by number (exact matches only, same order). One request for all numbers. */

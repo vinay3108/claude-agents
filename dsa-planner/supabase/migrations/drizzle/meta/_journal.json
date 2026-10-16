@@ -22,6 +22,34 @@
       "when": 1780754613647,
       "tag": "0002_youthful_night_nurse",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792091129340,
+      "tag": "0003_enable_pgvector",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792091138449,
+      "tag": "0004_agent_memory",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792091138450,
+      "tag": "0005_agent_memory_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792124490164,
+      "tag": "0006_noisy_santa_claus",
+      "breakpoints": true
     }
   ]
 }

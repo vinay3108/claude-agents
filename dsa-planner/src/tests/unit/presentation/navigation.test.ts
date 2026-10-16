@@ -24,7 +24,10 @@ describe('NAV_SECTIONS', () => {
     expect(items.map((i) => i.href).sort()).toEqual([
       '/coach',
       '/dashboard',
+      '/import',
       '/interview',
+      '/knowledge',
+      '/memory',
       '/notes',
       '/recommendations',
       '/settings',

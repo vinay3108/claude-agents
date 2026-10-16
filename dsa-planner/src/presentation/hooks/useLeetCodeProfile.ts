@@ -4,8 +4,8 @@ import type { LeetCodeProfileOverview } from '@/application/use-cases/leetcode/G
 import { readApiErrorMessage } from '@/presentation/components/auth/readApiError'
 
 export const LEETCODE_PROFILE_QUERY_KEY = ['leetcode-profile'] as const
-/** Queries whose data a LeetCode sync rewrites (snapshot -> analytics, new submissions -> notes). */
-const SYNCED_QUERY_KEYS = [['analytics'], ['notes']] as const
+/** Queries whose data a LeetCode sync rewrites (snapshot -> analytics, new submissions -> notes, calendar). */
+const SYNCED_QUERY_KEYS = [['analytics'], ['notes'], ['practice-calendar']] as const
 
 /** What POST /api/leetcode/sync returns. */
 export interface LeetCodeSyncResult {

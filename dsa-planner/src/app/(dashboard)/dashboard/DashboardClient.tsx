@@ -10,6 +10,8 @@ import { VelocityTrendChart } from '@/presentation/components/charts/VelocityTre
 import { Panel } from '@/presentation/components/layout/Panel'
 import { TopicChips } from '@/presentation/components/stats/TopicChips'
 import { LeetCodeSyncButton } from '@/presentation/components/leetcode/LeetCodeSyncButton'
+import { TodayPlanPanel } from '@/presentation/components/dashboard/TodayPlanPanel'
+import { PracticeCalendar } from '@/presentation/components/dashboard/PracticeCalendar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ButtonLink } from '@/components/ui/button-link'
 import { cn } from '@/lib/utils'
@@ -100,6 +102,16 @@ export function DashboardClient({ email }: DashboardClientProps) {
           <DifficultyBar counts={dist} loading={isLoading} />
         </div>
       </section>
+
+      {/* Start here: today's problems and the daily streak, before the stats. */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <TodayPlanPanel index={1} />
+        </div>
+        <div className="lg:col-span-2">
+          <PracticeCalendar index={2} />
+        </div>
+      </div>
 
       {/* Dim (not hide) the data while a sync rewrites it. */}
       <div className={cn('space-y-6 transition-opacity', syncing && 'opacity-60')} aria-busy={syncing}>

@@ -6,4 +6,6 @@ export interface IStudyPlanRepository {
   findActiveByUserId(userId: UserId): Promise<StudyPlan[]>
   save(plan: StudyPlan): Promise<StudyPlan>
   updateItemCompleted(itemId: string, completedAt: Date): Promise<void>
+  /** Mark a day done or not done. Returns false when the day is not in that plan. */
+  setItemCompleted(planId: string, itemId: string, completed: boolean): Promise<boolean>
 }

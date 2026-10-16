@@ -1,50 +1,59 @@
-'use client'
-import { useRef, useEffect, useState, type KeyboardEvent } from 'react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Skeleton } from '@/components/ui/skeleton'
-import { MicButton } from '@/presentation/components/ui/MicButton'
-import { useCoachChat } from '@/presentation/hooks/useCoachChat'
+"use client";
+import { useRef, useEffect, useState, type KeyboardEvent } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MicButton } from "@/presentation/components/ui/MicButton";
+import { useCoachChat } from "@/presentation/hooks/useCoachChat";
+import { ToolSteps } from "@/presentation/components/coach/ToolSteps";
 
 interface ChatTabProps {
-  initialMessage?: string
+  initialMessage?: string;
 }
 
 export function ChatTab({ initialMessage }: ChatTabProps) {
-  const { messages, isLoading, isStreaming, streamingContent, error, sendMessage, clearChat } =
-    useCoachChat()
-  const [input, setInput] = useState(initialMessage ?? '')
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const initialSentRef = useRef(false)
+  const {
+    messages,
+    isLoading,
+    isStreaming,
+    streamingContent,
+    steps,
+    error,
+    sendMessage,
+    clearChat,
+  } = useCoachChat();
+  const [input, setInput] = useState(initialMessage ?? "");
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const initialSentRef = useRef(false);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent])
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, streamingContent]);
 
   // Pre-populate input when coming from a note card
   useEffect(() => {
     if (initialMessage && !initialSentRef.current) {
-      setInput(initialMessage)
+      setInput(initialMessage);
     }
-  }, [initialMessage])
+  }, [initialMessage]);
 
   const handleSend = async () => {
-    const text = input.trim()
-    if (!text || isStreaming) return
-    setInput('')
-    await sendMessage(text)
-  }
+    const text = input.trim();
+    if (!text || isStreaming) return;
+    setInput("");
+    await sendMessage(text);
+  };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      void handleSend()
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
     }
-  }
+  };
 
   const handleTranscript = (text: string) => {
-    setInput((prev) => (prev ? `${prev} ${text}` : text))
-  }
+    setInput((prev) => (prev ? `${prev} ${text}` : text));
+  };
 
   return (
     <div className="flex flex-col h-[600px] border rounded-lg overflow-hidden">
@@ -73,13 +82,13 @@ export function ChatTab({ initialMessage }: ChatTabProps) {
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-br-sm'
-                      : 'bg-muted rounded-bl-sm'
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-muted rounded-bl-sm"
                   }`}
                 >
                   {msg.content}
@@ -107,7 +116,10 @@ export function ChatTab({ initialMessage }: ChatTabProps) {
             )}
           </>
         )}
-        {error && <p className="text-xs text-destructive text-center">{error}</p>}
+        {steps.length > 0 && <ToolSteps steps={steps} />}
+        {error && (
+          <p className="text-xs text-destructive text-center">{error}</p>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -132,5 +144,5 @@ export function ChatTab({ initialMessage }: ChatTabProps) {
         </Button>
       </div>
     </div>
-  )
+  );
 }
